@@ -1,8 +1,10 @@
-from .models import Gps
-from .serializers import GpsSerializer
+from .models import Gps, Beacon
+from .serializers import GpsSerializer, BeaconSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.parsers import JSONParser
 
 @api_view(['GET', 'POST'])
 def gps_list(request, format=None):
@@ -49,3 +51,28 @@ def gps_detail(request, pk, format=None):
     if request.method == 'DELETE':
         gps.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class MyRecentGpsPosition(APIView):
+    def post(self, request):
+        data = JSONParser().parse(request)
+        try:
+            gps = Gps.objects.filter(name = data['name'])
+        except Gps.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        recentPosition = gps.order_by('-upload_date')
+        serializer = GpsSerializer(recentPosition[0])
+
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+class BeaconList(APIView):
+    def get(self, request):
+        beacon = Beacon.objects.all()
+        serializer = BeaconSerializer(beacon, many=True)
+        return Response(data=serializer.data)
+    
+    def post(self, request):
+        serializer = BeaconSerializer(data = request.data)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
